@@ -17,8 +17,9 @@ openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
 
 cat << EOF >> /.env
 PASSWORD_ITERATIONS=2000000
-DOMAIN="https://$LAN_IP"
+DOMAIN="https://$LAN_IP:8082"
 WEB_VAULT_ENABLED=true
+WEBSOCKET_ENABLED=true
 EOF
 
 cat << EOF > /data/start9/stats.yaml
@@ -33,7 +34,7 @@ data:
     masked: true
   "Local Admin URL":
     type: string
-    value: "https://$LAN_IP/admin"
+    value: "https://$LAN_IP:8082/admin"
     description: "The URL for accessing your admin dashboard via your LAN."
     copyable: true
     qr: false
@@ -102,6 +103,11 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host $host;
+        proxy_read_timeout 86400;
         proxy_pass http://0.0.0.0:80;
     }
 }
@@ -159,6 +165,11 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host $host;
+        proxy_read_timeout 86400;
         proxy_pass http://0.0.0.0:80;
     }
 }
