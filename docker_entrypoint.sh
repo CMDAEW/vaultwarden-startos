@@ -6,10 +6,16 @@ echo "ADMIN_TOKEN='${VW_ADMIN_TOKEN}'" >> /.env
 TOR_ADDRESS=$(yq e .vaultwarden-tor-address /data/start9/config.yaml)
 LAN_ADDRESS=$(yq e .vaultwarden-lan-address /data/start9/config.yaml)
 
+# Erstellen eines selbstsignierten Zertifikats für LAN
+mkdir -p /etc/ssl/vaultwarden
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+  -keyout /etc/ssl/vaultwarden/lan.key -out /etc/ssl/vaultwarden/lan.crt \
+  -subj "/CN=$LAN_ADDRESS" -addext "subjectAltName=DNS:$LAN_ADDRESS,IP:127.0.0.1"
+
 cat << EOF >> /.env
 PASSWORD_ITERATIONS=2000000
-DOMAIN="https://$TOR_ADDRESS"
-DISABLE_HTTPS_REQUIREMENT=true
+DOMAIN="https://$LAN_ADDRESS"
+WEB_VAULT_ENABLED=true
 EOF
 
 cat << EOF > /data/start9/stats.yaml
@@ -24,7 +30,7 @@ data:
     masked: true
   "Local Admin URL":
     type: string
-    value: "https://$LAN_ADDRESS/admin"
+    value: "http://$LAN_ADDRESS/admin"
     description: "The URL for accessing your admin dashboard via your LAN."
     copyable: true
     qr: false
@@ -40,7 +46,7 @@ EOF
 
 CONF_FILE="/etc/nginx/http.d/default.conf"
 NGINX_CONF='
-# SSL Server Block
+# SSL Server Block für Tor
 server {
     gzip on;
     gzip_disable "msie6";
@@ -97,7 +103,7 @@ server {
     }
 }
 
-# Non-SSL Server Block for LAN
+# SSL Server Block für LAN
 server {
     gzip on;
     gzip_disable "msie6";
@@ -128,7 +134,10 @@ server {
     text/plain
     text/xml;
 
-    listen 8080;
+    listen 8080 ssl;
+    http2 on;
+    ssl_certificate /etc/ssl/vaultwarden/lan.crt;
+    ssl_certificate_key /etc/ssl/vaultwarden/lan.key;
     server_name localhost;
     client_max_body_size 128M;
 
