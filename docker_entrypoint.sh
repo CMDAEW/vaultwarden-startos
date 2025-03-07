@@ -6,15 +6,18 @@ echo "ADMIN_TOKEN='${VW_ADMIN_TOKEN}'" >> /.env
 TOR_ADDRESS=$(yq e .vaultwarden-tor-address /data/start9/config.yaml)
 LAN_ADDRESS=$(yq e .vaultwarden-lan-address /data/start9/config.yaml)
 
-# Erstellen eines selbstsignierten Zertifikats für LAN
+# IP-Adresse aus dem LAN_ADDRESS extrahieren (falls es eine URL ist)
+LAN_IP="172.16.66.32"  # Direkt die IP-Adresse verwenden, die Sie zugreifen
+
+# Erstellen eines selbstsignierten Zertifikats für die IP-Adresse
 mkdir -p /etc/ssl/vaultwarden
 openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
   -keyout /etc/ssl/vaultwarden/lan.key -out /etc/ssl/vaultwarden/lan.crt \
-  -subj "/CN=$LAN_ADDRESS" -addext "subjectAltName=DNS:$LAN_ADDRESS,IP:127.0.0.1"
+  -subj "/CN=$LAN_IP" -addext "subjectAltName=IP:$LAN_IP"
 
 cat << EOF >> /.env
 PASSWORD_ITERATIONS=2000000
-DOMAIN="https://$LAN_ADDRESS"
+DOMAIN="https://$LAN_IP"
 WEB_VAULT_ENABLED=true
 EOF
 
@@ -30,7 +33,7 @@ data:
     masked: true
   "Local Admin URL":
     type: string
-    value: "http://$LAN_ADDRESS/admin"
+    value: "https://$LAN_IP/admin"
     description: "The URL for accessing your admin dashboard via your LAN."
     copyable: true
     qr: false
